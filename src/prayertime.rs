@@ -87,12 +87,35 @@ where
     D: Deserializer<'de>,
 {
     let s: &str = Deserialize::deserialize(deserializer)?;
-    let naivedate = NaiveDate::parse_from_str(s, "%d-%b-%Y").unwrap();
+    let s2 = convert_my_to_en_date(s);
+    let naivedate = NaiveDate::parse_from_str(s2.as_str(), "%d-%b-%Y").unwrap();
     Ok(naivedate)
+}
+
+fn convert_my_to_en_date(s: &str) -> String {
+    let my = [
+        "Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogos", "Sep", "Okt", "Nov", "Dis",
+    ];
+    let en = [
+        "Jan", "Feb", "Mac", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+
+    if s.contains(my[4]) {
+        return s.replace(my[4], en[4]);
+    } else if s.contains(my[7]) {
+        return s.replace(my[7], en[7]);
+    } else if s.contains(my[9]) {
+        return s.replace(my[9], en[9]);
+    } else if s.contains(my[11]) {
+        return s.replace(my[11], en[11]);
+    } else {
+        return s.to_string();
+    }
 }
 
 #[cfg(test)]
 mod tests {
+
     // Commented out until I figure out how to dynamically update the dates
     /*
     use super::*;
