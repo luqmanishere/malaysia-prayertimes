@@ -83,5 +83,5 @@ async fn get_waktu_zones() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .text()
         .await?;
-    return Ok(());
+    Ok(())
 }

@@ -101,15 +101,15 @@ fn convert_my_to_en_date(s: &str) -> String {
     ];
 
     if s.contains(my[4]) {
-        return s.replace(my[4], en[4]);
+        s.replace(my[4], en[4])
     } else if s.contains(my[7]) {
-        return s.replace(my[7], en[7]);
+        s.replace(my[7], en[7])
     } else if s.contains(my[9]) {
-        return s.replace(my[9], en[9]);
+        s.replace(my[9], en[9])
     } else if s.contains(my[11]) {
-        return s.replace(my[11], en[11]);
+        s.replace(my[11], en[11])
     } else {
-        return s.to_string();
+        s.to_string()
     }
 }
 
