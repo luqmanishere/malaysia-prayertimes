@@ -1,8 +1,29 @@
 use chrono::prelude::*;
+use clap::ValueEnum;
+use eyre::{eyre, Result};
 use serde::{Deserialize, Deserializer};
+use strum::EnumIter;
+
+#[derive(Clone,Debug,ValueEnum,EnumIter)]
+#[rustfmt::skip]
+#[value(rename_all="UPPER")]
+pub enum Zones {
+    JHR01, JHR02, JHR03, JHR04, KDH01, KDH02, KDH03, KDH04, KDH05, KDH06,
+    KDH07, KTN01, KTN03, MLK01, NGS01, NGS02, PHG01, PHGO2, PHGO3, PHGO4,
+    PHGO5, PHGO6, PLS01, PNG01, PRK01, PRK02, PRK03, PRK04, PRK05, PRK06,
+    PRK07, SBH01, SBH02, SBH03, SBH04, SBH05, SBH06, SBH07, SBH08, SBH09,
+    SGR01, SGR02, SGR03, SWK01, SWK02, SWK03, SWK04, SWK05, SWK06, SWK07,
+    SWK08, SWK09, TRG01, TRG02, TRG03, TRG04, WLY01, WLY02,
+}
+impl std::fmt::Display for Zones {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub struct PrayerData {
     pub prayer_time: Vec<PrayerTime>,
     status: String,
@@ -13,10 +34,7 @@ pub struct PrayerData {
 }
 
 impl PrayerData {
-    pub async fn from_options(
-        zone: Option<&str>,
-        time: Option<&str>,
-    ) -> Result<PrayerData, Box<dyn std::error::Error>> {
+    pub async fn from_options(zone: Option<&str>, time: Option<&str>) -> Result<PrayerData> {
         let file = reqwest::get(format!(
             "https://www.e-solat.gov.my/index.php?r=esolatApi/TakwimSolat&period={}&zone={}",
             time.unwrap_or("today"),
@@ -28,8 +46,38 @@ impl PrayerData {
         let deserialized: PrayerData = serde_json::from_str(&file)?;
         Ok(deserialized)
     }
+
+    #[deprecated]
+    #[allow(dead_code)]
     pub fn print_waktu_solat_today(&self) {
         let prayer_time = self.prayer_time.first().unwrap();
+        println!(
+            "Prayer times for {}, {}, zone {}",
+            prayer_time.date.format("%A"),
+            prayer_time.date,
+            self.zone
+        );
+
+        println!("Imsak:   {}", prayer_time.imsak.format("%I:%M %p"));
+        println!("Subuh:   {}", prayer_time.fajr.format("%I:%M %p"));
+        println!("Zohor:   {}", prayer_time.dhuhr.format("%I:%M %p"));
+        println!("Asar:    {}", prayer_time.asr.format("%I:%M %p"));
+        println!("Maghrib: {}", prayer_time.maghrib.format("%I:%M %p"));
+        println!("Isyak:   {}", prayer_time.isha.format("%I:%M %p"));
+    }
+
+    pub async fn print_prayer_time_today(zone: Option<&str>) -> Result<()> {
+        let instance = Self::from_options(zone, Some("today")).await?;
+        let prayer_time = instance
+            .prayer_time
+            .first()
+            .ok_or_else(|| eyre!("No valid prayer time found"))?;
+
+        instance.print_prayer_time(prayer_time);
+        Ok(())
+    }
+
+    fn print_prayer_time(&self, prayer_time: &PrayerTime) {
         println!(
             "Prayer times for {}, {}, zone {}",
             prayer_time.date.format("%A"),
@@ -74,11 +122,8 @@ where
     D: Deserializer<'de>,
 {
     let s: &str = Deserialize::deserialize(deserializer)?;
-    let now = Local::now().date();
-    let naivedate = NaiveDateTime::new(
-        now.naive_local(),
-        NaiveTime::parse_from_str(s, "%H:%M:%S").unwrap(),
-    );
+    let now = Local::now().date_naive();
+    let naivedate = NaiveDateTime::new(now, NaiveTime::parse_from_str(s, "%H:%M:%S").unwrap());
     Ok(naivedate)
 }
 
