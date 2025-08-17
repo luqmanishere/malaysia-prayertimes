@@ -1,17 +1,20 @@
 mod cli;
+mod config;
 mod prayertime;
 
 use clap::Parser;
 use cli::{Cli, Commands};
 use prayertime::{PrayerData, Zones};
 use strum::IntoEnumIterator;
+
+use crate::config::Config;
 // The whole reason this is async is because of reqwest. There's probably a lighter library out there.
 // I did not know of the existance of a blocking client from reqwest prior to writing this program.
 // Anyways, forgive the absurd amount of libraries. I am just too lazy to reinvent the wheel.
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize clap
     let cli = Cli::parse();
+    let _config = Config::new(cli.config.as_deref())?;
 
     match cli.command {
         Commands::Today(zone) => {
