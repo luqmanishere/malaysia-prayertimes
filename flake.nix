@@ -1,172 +1,96 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nci.url = "github:yusdacra/nix-cargo-integration";
-    nci.inputs.nixpkgs.follows = "nixpkgs";
-    parts.url = "github:hercules-ci/flake-parts";
-    parts.inputs.nixpkgs-lib.follows = "nixpkgs";
-    devshell.url = "github:numtide/devshell";
-    rust-overlay.url = "github:oxalica/rust-overlay";
+    parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+    naersk.url = "github:nix-community/naersk";
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs @ {
+    self,
     parts,
-    nci,
-    devshell,
-    rust-overlay,
     nixpkgs,
+    naersk,
+    fenix,
     ...
-  }:
+  }: let
+    # crate name
+    crateName = "malaysia-prayertimes";
+  in
     parts.lib.mkFlake {inherit inputs;} {
-      systems = ["x86_64-linux"];
-      imports = [nci.flakeModule parts.flakeModules.easyOverlay devshell.flakeModule];
+      systems = ["x86_64-linux" "aarch64-linux"];
+      imports = [parts.flakeModules.easyOverlay];
       perSystem = {
         config,
         pkgs,
         system,
-        inputs',
-        lib,
-        self',
         ...
       }: let
-        crateName = "malaysia-prayertimes";
-        # shorthand for accessing this crate's outputs
-        # you can access crate outputs under `config.nci.outputs.<crate name>` (see documentation)
-        crateOutputs = config.nci.outputs.${crateName};
-        libPath = with pkgs;
-          lib.makeLibraryPath
-          [
-            libGL
-            libxkbcommon
-            wayland
-            xorg.libX11
-            xorg.libXcursor
-            xorg.libXi
-            xorg.libXrandr
-          ];
+        # custom toolchain for the latest stable from fenix
+        toolchain = fenix.packages.${system}.stable.toolchain;
+
+        naersk' = pkgs.callPackage naersk {
+          cargo = toolchain;
+          rustc = toolchain;
+        };
+
+        builder = {release ? true}:
+          naersk'.buildPackage {
+            src = self;
+
+            # dependencies required to build
+            nativeBuildInputs = with pkgs; [pkg-config];
+            buildInputs = with pkgs; [];
+
+            inherit release;
+          };
       in rec {
-        # use oxalica/rust-overlay
         _module.args.pkgs = import nixpkgs {
           inherit system;
-          overlays = [rust-overlay.overlays.default];
+          overlays = [fenix.overlays.default];
+          config.allowUnfree = true;
         };
 
-        # relPath is empty to denote current dir
-        nci.projects.${crateName}.relPath = "";
+        packages.default = packages.${crateName};
+        packages.${crateName} = packages.release;
+        packages.release = builder {release = true;};
+        packages.debug = builder {release = false;};
 
-        nci.crates.${crateName} = {
-          # export crate (packages and devshell) in flake outputs
-          export = true;
-
-          # overrides
-          overrides = {
-            add-inputs.overrideAttrs = old: {
-              nativeBuildInputs = (old.nativeBuildInputs or []) ++ [pkgs.wayland-protocols pkgs.makeWrapper];
-              buildInputs = (old.buildInputs or []) ++ [pkgs.pkg-config pkgs.openssl.dev pkgs.openssl pkgs.perl];
-              /*
-              postInstall = ''
-                wrapProgram "$out/bin/wayper" --prefix LD_LIBRARY_PATH : "${libPath}"
-              '';
-              */
-              meta = {
-                mainProgram = "praytime";
-              };
-            };
-          };
-
-          # dependency overrides
-          depsOverrides = {
-            add-inputs.overrideAttrs = old: {
-              nativeBuildInputs = (old.nativeBuildInputs or []) ++ [pkgs.wayland-protocols];
-              buildInputs = (old.buildInputs or []) ++ [pkgs.pkg-config pkgs.openssl.dev pkgs.openssl pkgs.perl];
-            };
-          };
-        };
-
-        /*
-        nci.toolchains = {
-          build = {
-            package = pkgs.rust-bin.stable.latest.minimal;
-          };
-        };
-        */
-
-        # use numtide/devshell
-        devshells.default = with pkgs; {
-          motd = ''
-            -----------------
-            -malaysia-prayertimes devshell-
-            -----------------
-            $(type -p menu &>/dev/null && menu)
-          '';
-          env = [
-            {
-              name = "RUST_SRC_PATH";
-              value = rustPlatform.rustLibSrc;
-            }
-            {
-              name = "LD_LIBRARY_PATH";
-              value = libPath;
-            }
-            {
-              name = "PKG_CONFIG_PATH";
-              value = "${openssl.dev}/lib/pkgconfig";
-            }
-          ];
-
-          packages = [
-            (rust-bin.stable.latest.default.override {
-              extensions = ["rust-src" "rust-analyzer"];
-            })
+        devShells.default = pkgs.mkShell {
+          nativeBuildInputs = with pkgs; [
             pkg-config
+          ];
+          buildInputs = with pkgs; [
+            toolchain
             just
-          ];
+            ripgrep
+            stdenv.cc
 
-          commands = [
-            {
-              name = "prayertime-today";
-              command = "RUST_LOG=debug nix run .#${crateName}-dev -- today";
-              help = "Run prayertime -- today";
-              category = "praytime";
-            }
-            {
-              name = "run-${crateName}";
-              command = "RUST_LOG=debug nix run .#${crateName}-dev --";
-              help = "Run ${crateName} (debug build)";
-              category = "Run";
-            }
-            {
-              name = "run-${crateName}-rel";
-              command = "RUST_LOG=debug nix run .#${crateName}-rel --";
-              help = "Run ${crateName} (release build)";
-              category = "Run";
-            }
-            {
-              name = "build-${crateName}";
-              command = "RUST_LOG=debug nix build .#${crateName}-dev";
-              help = "Build ${crateName} (debug build)";
-              category = "Build";
-            }
-            {
-              name = "build-${crateName}-rel";
-              command = "RUST_LOG=debug nix build .#${crateName}-rel";
-              help = "Build ${crateName} (release build)";
-              category = "Build";
-            }
+            openssl
+
+            # testing apparatus
+            cargo-machete
           ];
+          inputsFrom = [packages.default];
         };
-
-        # export the release package of the crate as default package
-        packages.default = crateOutputs.packages.release;
 
         # export overlay using easyOverlays
         overlayAttrs = {
+          # dynamic variables are not allowed
           inherit (config.packages) malaysia-prayertimes;
-          /*
-          inherit (inputs.rust-overlay.overlays) default;
-          */
         };
-        packages.malaysia-prayertimes = crateOutputs.packages.release;
+      };
+      flake = {
+        homeManagerModules = {
+          ${crateName} = import ./nix/hm-module.nix inputs.self;
+          default = inputs.self.homeManagerModules.${crateName};
+        };
       };
     };
 }
