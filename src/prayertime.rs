@@ -142,23 +142,18 @@ where
 }
 
 fn convert_my_to_en_date(s: &str) -> String {
-    let my = [
-        "Jan", "Feb", "Mac", "Apr", "Mei", "Jun", "Jul", "Ogos", "Sep", "Okt", "Nov", "Dis",
-    ];
-    let en = [
-        "Jan", "Feb", "Mac", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
+    let my = ["Mei", "Ogos", "Okt", "Dis"];
+    let en = ["May", "Aug", "Oct", "Dec"];
 
-    if s.contains(my[4]) {
-        s.replace(my[4], en[4])
-    } else if s.contains(my[7]) {
-        s.replace(my[7], en[7])
-    } else if s.contains(my[9]) {
-        s.replace(my[9], en[9])
-    } else if s.contains(my[11]) {
-        s.replace(my[11], en[11])
-    } else {
-        s.to_string()
+    match my.iter().enumerate().find_map(|(i, my_month)| {
+        if s.contains(my_month) {
+            Some(s.replace(my_month, en[i]))
+        } else {
+            None
+        }
+    }) {
+        Some(month) => month,
+        None => s.to_string(),
     }
 }
 
