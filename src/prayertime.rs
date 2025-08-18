@@ -89,6 +89,7 @@ impl PrayerData {
 
         println!("Imsak:   {}", prayer_time.imsak.format("%I:%M %p"));
         println!("Subuh:   {}", prayer_time.fajr.format("%I:%M %p"));
+        println!("Syuruk:  {}", prayer_time.syuruk.format("%I:%M %p"));
         println!("Zohor:   {}", prayer_time.dhuhr.format("%I:%M %p"));
         println!("Asar:    {}", prayer_time.asr.format("%I:%M %p"));
         println!("Maghrib: {}", prayer_time.maghrib.format("%I:%M %p"));
@@ -99,6 +100,7 @@ impl PrayerData {
 #[derive(Debug, Deserialize)]
 pub struct PrayerTime {
     // TODO Implement DateTime for hijri (assuming 28 days probably)
+    #[expect(unused)]
     pub hijri: String,
     #[serde(deserialize_with = "deserialize_to_date")]
     pub date: NaiveDate,
