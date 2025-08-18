@@ -6,20 +6,15 @@ use std::{
 };
 
 use etcetera::{AppStrategy, AppStrategyArgs};
+use eyre::Result;
 use serde::Deserialize;
 
 use crate::prayertime::Zones;
 
-static CONFIG_FILE: LazyLock<PathBuf> = LazyLock::new(|| {
-    etcetera::choose_app_strategy(AppStrategyArgs {
-        top_level_domain: "com".to_string(),
-        author: "solemnattic".to_string(),
-        app_name: "praytime".to_string(),
-    })
-    .unwrap()
-    .config_dir()
-    .join("config.toml")
-});
+pub static CONFIG_FILE: LazyLock<PathBuf> =
+    LazyLock::new(|| etcetera_def().unwrap().config_dir().join("config.toml"));
+
+pub static CACHE_DIR: LazyLock<PathBuf> = LazyLock::new(|| etcetera_def().unwrap().cache_dir());
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -44,4 +39,12 @@ impl Config {
     pub fn get_default_zone(&self) -> Zones {
         self.default_zone.clone()
     }
+}
+
+fn etcetera_def() -> Result<impl AppStrategy> {
+    Ok(etcetera::choose_app_strategy(AppStrategyArgs {
+        top_level_domain: "com".to_string(),
+        author: "solemnattic".to_string(),
+        app_name: "praytime".to_string(),
+    })?)
 }
