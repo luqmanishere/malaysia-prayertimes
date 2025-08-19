@@ -18,8 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         Commands::Today(zone) => {
-            let zone = zone.zone.to_string();
-            PrayerData::print_prayer_time_today(Some(&zone)).await?;
+            PrayerData::print_prayer_time_today(Some(zone.zone)).await?;
         }
         Commands::List => {
             println!("Available zones: ");

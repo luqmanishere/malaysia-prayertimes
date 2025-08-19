@@ -11,7 +11,7 @@ name = "praytime"
 path = "src/main.rs"
 
 [dependencies]
-chrono = "0.4"
+chrono = {version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 etcetera = { version = "0.10" }
 eyre = "0.6"
@@ -21,4 +21,3 @@ serde_json = "1"
 strum = { version = "0.27", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 toml = { version = "0.9" }
-
